@@ -1,3 +1,5 @@
+# NLTK packages
+nltk_packages/
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
