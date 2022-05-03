@@ -29,7 +29,7 @@ def main():
     end = timer()
     logger.info(f'Time to vectorizer text: {timedelta(seconds=end - start)}')
 
-    km_loop(df, X, terms)
+    loop(df, X, terms)
 
 
 def clean_text(df):
@@ -39,7 +39,7 @@ def clean_text(df):
     return df
 
 
-def km_loop(df, X, terms):
+def loop(df, X, terms):
     results = pd.DataFrame()
     linkages = ['ward', 'complete', 'average', 'single']
     affinities = ['cosine', 'euclidean', 'manhattan']
@@ -48,7 +48,10 @@ def km_loop(df, X, terms):
     for i in range(10, 20):
         for linkage in linkages:
             for aff in affinities:
-                results = results.append(agglo(df, X, terms, i, linkage, aff))
+                if linkage == 'ward':
+                    results = results.append(agglo(df, X, terms, i, linkage, 'euclidean'))
+                else:
+                    results = results.append(agglo(df, X, terms, i, linkage, aff))
 
     results.to_csv('./agglo_loop_result.csv', index=False)
 
@@ -89,7 +92,7 @@ def agglo(df, X, terms, K, link, affinity):
                               columns=['K', 'linkage', 'affinity', 'silhouette_euclidian', 'silhouette_cosine',
                                        'silhouette_manhattan', 'calinski', 'davies', 'time'])
     logger.info(f'Saving 2d and 3d plots.')
-    name = str(km)
+    name = str(agglomerative)
     text =f"""- {description}
     {silhouette_score_euclidian}
     {silhouette_score_cosine}
@@ -101,7 +104,7 @@ def agglo(df, X, terms, K, link, affinity):
     utils.plot2d('./agglomerative/figures/2d', name, X, X_t, True, footnote=text)
     utils.plot3d('./agglomerative/figures/3d', name, X, X_t, True, footnote=text)
 
-    df.to_csv(f'./agglomerative/csvs/{K}-{max_iter}-{n_init}.csv')
+    df.to_csv(f'./agglomerative/csvs/{K}-{link}-{affinity}.csv')
     pickle.dump(agglomerative, open(f'./agglomerative/models/{K}-{link}-{affinity}.pkl', 'wb'))
 
     return try_result

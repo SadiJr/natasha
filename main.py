@@ -14,7 +14,7 @@ def create_dirs():
 
     current_dir = os.listdir('.')
 
-    algorithms = ['kmeans', 'dbscan', 'gmm']
+    algorithms = ['kmeans', 'dbscan', 'gmm', 'agglomerative']
     dependencies = 'nltk_packages'
     general_subdirectories = ['csvs', 'models', 'figures',
                               f'figures{separator}wordcloud',

@@ -12,6 +12,7 @@ from loggerfactory import LoggerFactory
 import pandas as pd
 from sklearn import metrics
 from sklearn.mixture import GaussianMixture
+import numpy as np
 
 
 def main():
@@ -29,7 +30,7 @@ def main():
     end = timer()
     logger.info(f'Time to vectorizer text: {timedelta(seconds=end - start)}')
 
-    km_loop(df, X, terms)
+    loop(df, X, terms)
 
 
 def clean_text(df):
@@ -39,7 +40,7 @@ def clean_text(df):
     return df
 
 
-def km_loop(df, X, terms):
+def loop(df, X, terms):
     results = pd.DataFrame()
     covariance_type = ['full', 'tied', 'diag', 'spherical']
     tolerances = np.arange(start=0.01, stop=0.1, step=0.01)
@@ -88,7 +89,7 @@ def gmm(df, X, terms, K, cov, tolerance):
                               columns=['K', 'covariance_type', 'tol', 'silhouette_euclidian', 'silhouette_cosine',
                                        'silhouette_manhattan', 'calinski', 'davies', 'time'])
     logger.info(f'Saving 2d and 3d plots.')
-    name = str(km)
+    name = str(gmm)
     text =f"""- {description}
     {silhouette_score_euclidian}
     {silhouette_score_cosine}
@@ -100,8 +101,8 @@ def gmm(df, X, terms, K, cov, tolerance):
     utils.plot2d('./gmm/figures/2d', name, X, X_t, True, footnote=text)
     utils.plot3d('./gmm/figures/3d', name, X, X_t, True, footnote=text)
 
-    df.to_csv(f'./gmm/csvs/{K}-{max_iter}-{n_init}.csv')
-    pickle.dump(gmm, open(f'./gmm/models/{K}-{link}-{affinity}.pkl', 'wb'))
+    df.to_csv(f'./gmm/csvs/{K}-{cov}-{tolerance}.csv')
+    pickle.dump(gmm, open(f'./gmm/models/{K}-{cov}-{tolerance}.pkl', 'wb'))
 
     return try_result
 
