@@ -6,8 +6,9 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 
 logger = LoggerFactory.get_logger(__name__, log_level="INFO")
 
+
 def tfidf(text, min_df, max_df):
-    logger.info(f'Applying vectorizer TF-IDF to data')
+    logger.info(f'Applying vectorizer TF-IDF to data with min_df {min_df} and max_df {max_df}.')
     X, terms = vectorizer(text, min_df, max_df)
 
     logger.debug(f'Generated sparse matrix have shape: {X.shape}.')

@@ -1,44 +1,50 @@
 import re
 from loggerfactory import LoggerFactory
 import nltk
-from sklearn.feature_extraction.text import TfidfVectorizer
-#nltk.download('punkt', download_dir='./nltk_packages')
-#nltk.download('stopwords', download_dir='./nltk_packages')
-#nltk.download('wordnet', download_dir='./nltk_packages')
-#nltk.download('omw-1.4', download_dir='./nltk_packages')
+# nltk.download('punkt', download_dir='./nltk_packages')
+# nltk.download('stopwords', download_dir='./nltk_packages')
+# nltk.download('wordnet', download_dir='./nltk_packages')
+# nltk.download('omw-1.4', download_dir='./nltk_packages')
 import os
+
 data = os.path.abspath(os.curdir) + os.path.sep + 'nltk_packages'
 nltk.data.path.append(data)
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
-from loggerfactory import LoggerFactory
+from nltk.stem import SnowballStemmer
 
-logger = LoggerFactory.get_logger(__name__, log_level="INFO")
+logger = LoggerFactory.get_logger(__name__, log_level='INFO')
 
 lemmatizer = WordNetLemmatizer()
+stemmer = SnowballStemmer('english')
 
 
-def vectorizer(text, min_df, max_df):
-    logger.debug(f'Vectorizing text {text} with min df {min_df} and max df {max_df}')
-    vectorizer = TfidfVectorizer(min_df=min_df, max_df=max_df)
-    X = vectorizer.fit_transform(text)
-    return X, vectorizer.get_feature_names_out()
+def clean_text(df, text_column='text', cleaned_column='clean', stop_words=True, lemmatize=True, stem=True):
+    logger.info(f'Cleaning dataset.')
+    df[cleaned_column] = df[text_column].apply(lambda x: preprocess(x, stop_words, lemmatize, stem))
+    logger.info(f'Dataset clean text sample: {df.head()}')
+    return df
 
 
-def preprocess(x, stop_words, lematize):
-    logger.debug(f'Preprocessing string {x}.')
+def preprocess(text, stop_words, lemmatize, stem):
+    logger.debug(f'Preprocessing string {text}.')
 
-    x = x.lower()
-    x = re.sub('[0-9]|,|\.|/|$|\(|\)|-|\+|:|•', ' ', x)
+    text = text.lower()
+    text = re.sub('[0-9]|,|\.|/|$|\(|\)|-|\+|:|•', ' ', text)
 
     if stop_words:
-        tokens = nltk.word_tokenize(x)
-        if lematize:
+        tokens = nltk.word_tokenize(text)
+        if lemmatize and stem:
+            tokens = [stemmer.stem(lemmatizer.lemmatize(w, 'v')) for w in tokens if
+                      not w.lower() in stopwords.words("english")]
+        elif lemmatize:
             tokens = [lemmatizer.lemmatize(w, 'v') for w in tokens if not w.lower() in stopwords.words("english")]
-        else :
+        elif stem:
+            tokens = [stemmer.stem(w) for w in tokens if not w.lower() in stopwords.words("english")]
+        else:
             tokens = [w for w in tokens if not w.lower() in stopwords.words("english")]
-        x = " ".join(tokens)
-    x = x.strip()
+        text = " ".join(tokens)
+    text = text.strip()
 
-    logger.debug(f'Processed string: {x}.')
-    return x
+    logger.debug(f'Processed string: {text}.')
+    return text
