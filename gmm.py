@@ -10,7 +10,6 @@ import tfidf
 import utils
 from loggerfactory import LoggerFactory
 import pandas as pd
-from sklearn import metrics
 from sklearn.mixture import GaussianMixture
 import numpy as np
 import tempfile as tmp
@@ -22,7 +21,7 @@ logger = LoggerFactory.get_logger(__name__, log_level='DEBUG')
 
 
 def main(dataset, stop_words, lem, stem, min_df, max_df, k_start, k_stop, k_step, tol_start, tol_stop, tol_step,
-         covariances, matrix, n_components, random_state, output_dir):
+         covariances, matrix, n_components, random_state, disable_plots, output_dir):
     logger.info(f'Starting GaussianMixture')
 
     global default_random_state
@@ -47,40 +46,47 @@ def main(dataset, stop_words, lem, stem, min_df, max_df, k_start, k_stop, k_step
     logger.info(f'Time to vectorizer text: {timedelta(seconds=end - start)}.')
 
     if matrix == 'original':
-        loop(df, X, covariances, k_start, k_stop, k_step, tol_start, tol_stop, tol_step, None, output_dir)
+        loop(df, X, covariances, k_start, k_stop, k_step, tol_start, tol_stop, tol_step, None, output_dir,
+             disable_plots)
     elif matrix == 'all':
-        pca, Y_pca = utils.pca_reduction(X.toarray(), n_components, random_state)
-        tsne, Y_tsne = utils.tsne_reduction(X, n_components, random_state)
-        loop(df, X, covariances, k_start, k_stop, k_step, tol_start, tol_stop, tol_step, None, output_dir)
-        loop(df, Y_pca, covariances, k_start, k_stop, k_step, tol_start, tol_stop, tol_step, "PCA", output_dir)
-        loop(df, Y_tsne, covariances, k_start, k_stop, k_step, tol_start, tol_stop, tol_step, "TSNE", output_dir)
+        pca, Y_pca = utils.pca_reduction(X.toarray(), 0.95, random_state)
+        tsne, Y_tsne = utils.tsne_reduction(X, 2, random_state)
+        loop(df, X, covariances, k_start, k_stop, k_step, tol_start, tol_stop, tol_step, None, output_dir,
+             disable_plots)
+        loop(df, Y_pca, covariances, k_start, k_stop, k_step, tol_start, tol_stop, tol_step, "PCA", output_dir,
+             disable_plots)
+        loop(df, Y_tsne, covariances, k_start, k_stop, k_step, tol_start, tol_stop, tol_step, "TSNE", output_dir,
+             disable_plots)
     elif matrix == 'pca':
         pca, Y_pca = utils.pca_reduction(X.toarray(), n_components, random_state)
-        loop(df, Y_pca, covariances, k_start, k_stop, k_step, tol_start, tol_stop, tol_step, "PCA", output_dir)
+        loop(df, Y_pca, covariances, k_start, k_stop, k_step, tol_start, tol_stop, tol_step, "PCA", output_dir,
+             disable_plots)
     else:
         tsne, Y_tsne = utils.tsne_reduction(X, n_components, random_state)
-        loop(df, Y_tsne, covariances, k_start, k_stop, k_step, tol_start, tol_stop, tol_step, "TSNE", output_dir)
+        loop(df, Y_tsne, covariances, k_start, k_stop, k_step, tol_start, tol_stop, tol_step, "TSNE", output_dir,
+             disable_plots)
 
 
-def loop(df, X, covariances, k_start, k_stop, k_step, tol_start, tol_stop, tol_step, reduction_type, output_dir):
+def loop(df, X, covariances, k_start, k_stop, k_step, tol_start, tol_stop, tol_step, reduction_type, output_dir,
+         disable_plots):
     if covariances == 'all':
         covariance = ['full', 'tied', 'diag', 'spherical']
     else:
         covariance = [covariances]
-    results = pd.DataFrame()
+    pd.DataFrame(columns=['K', 'covariance_type', 'tol', 'reduction_type', 'silhouette_euclidian', 'silhouette_cosine',
+                          'silhouette_manhattan', 'calinski', 'davies', 'time'])\
+        .to_csv(f'{output_dir}results-{reduction_type}.csv', index=False)
 
     for i in np.arange(start=k_start, stop=k_stop, step=k_step):
         for cov in covariance:
             for tol in np.arange(start=tol_start, stop=tol_stop, step=tol_step):
-                results = results.append(gmm(df, X, i, cov, tol, reduction_type, output_dir))
-
-    results.to_csv(f'{output_dir}results-{reduction_type}.csv', index=False)
+                gmm(df, X, i, cov, tol, reduction_type, output_dir, disable_plots)
 
 
-def gmm(df, X, K, cov, tolerance, reduction_type, output_dir):
+def gmm(df, X, K, cov, tolerance, reduction_type, output_dir, disable_plots):
     start = timer()
 
-    gmm = GaussianMixture(n_components=K, covariance_type=cov, tol=tolerance)
+    gmm = GaussianMixture(n_components=K, covariance_type=cov, tol=tolerance, random_state=default_random_state)
     X_t = gmm.fit_predict(X.toarray() if reduction_type is None else X)
     end = timer()
 
@@ -94,23 +100,23 @@ def gmm(df, X, K, cov, tolerance, reduction_type, output_dir):
     logger.debug(text)
     df['cluster'] = X_t
 
-    try_result = pd.DataFrame(data=[[K, cov, tolerance, reduction_type, silhouette_euclidian, silhouette_cosine,
-                                     silhouette_manhattan, calinski, davies, duration]],
-                              columns=['K', 'covariance_type', 'tol', 'reduction_type', 'silhouette_euclidian',
-                                       'silhouette_cosine', 'silhouette_manhattan', 'calinski', 'davies', 'time'])
+    pd.DataFrame(data=[[K, cov, tolerance, reduction_type, silhouette_euclidian, silhouette_cosine,
+                        silhouette_manhattan, calinski, davies, duration]],
+                 columns=['K', 'covariance_type', 'tol', 'reduction_type', 'silhouette_euclidian', 'silhouette_cosine',
+                          'silhouette_manhattan', 'calinski', 'davies', 'time'])\
+        .to_csv(f'{output_dir}results-{reduction_type}.csv', index=False, header=False, mode='a')
 
-    logger.info('Saving 2d and 3d plots.')
-    name = str(gmm)
+    if not disable_plots:
+        logger.info('Saving 2d and 3d plots.')
+        name = str(gmm)
 
-    utils.d2(name, X, X_t, reduction_type is None, default_random_state, f'{output_dir}plots{os.path.sep}2d',
-             footnote=text)
-    utils.d3(name, X, X_t, reduction_type is None, default_random_state, f'{output_dir}plots{os.path.sep}3d',
-             footnote=text)
+        utils.d2(name, X, X_t, reduction_type is None, default_random_state, f'{output_dir}plots{os.path.sep}2d',
+                 footnote=text)
+        utils.d3(name, X, X_t, reduction_type is None, default_random_state, f'{output_dir}plots{os.path.sep}3d',
+                 footnote=text)
 
     df.to_csv(f'{output_dir}{K}-{cov}-{tolerance}-{reduction_type}.csv', index=False)
     #pickle.dump(gmm, open(f'./gmm/models/{K}-{cov}-{tolerance}.pkl', 'wb'))
-
-    return try_result
 
 
 def parse_args():
@@ -138,8 +144,10 @@ if __name__ == '__main__':
         args = parse_args()
         main(args.dataset, args.stop_words, args.lem, args.stem, args.min_df, args.max_df, args.k_start, args.k_stop,
              args.k_step, args.tol_start, args.tol_stop, args.tol_step, args.covariances, args.matrix,
-             args.n_components, args.random_state)
+             args.n_components, args.random_state, args.disable_plots, args.output_dir)
+        logger.info('Finish GMM algorithm run')
     except Exception:
+        logger.error('Error when running GMM algorithm: ')
         logger.error(utils.full_stack())
 
 

@@ -13,6 +13,8 @@ import sys
 import argparse
 from sklearn import metrics
 from datetime import timedelta
+import warnings
+warnings.filterwarnings('ignore')
 
 
 logger = LoggerFactory.get_logger(__name__, log_level='DEBUG')
@@ -224,7 +226,7 @@ def default_args(description):
     parser.add_argument('--stem', help='indicates to not use stemmer to clean text string', default=True,
                         action='store_false')
     parser.add_argument('--min-df', help='ignore terms that have a document frequency strictly lower than the given '
-                                         'threshold', type=float, default=5.0)
+                                         'threshold', type=int, default=5)
     parser.add_argument('--max-df', help='ignore terms that have a document frequency strictly higher than the given '
                                          'threshold if the dataset have or not a head', type=float, default=0.95)
     parser.add_argument('--matrix', help='the matrix who will be used to cluster data', type=str, default='all',
@@ -233,7 +235,8 @@ def default_args(description):
                         default=2)
     parser.add_argument('--random-state', help='the random state used to made the matrix reduction', type=int,
                         default=11767)
-
+    parser.add_argument('--disable-plots', help='disable plots to speed algorithmn loop process', default=False,
+                        action='store_true')
     return parser
 
 

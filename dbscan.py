@@ -22,7 +22,7 @@ logger = LoggerFactory.get_logger(__name__, log_level="DEBUG")
 
 
 def main(dataset, stop_words, lem, stem, min_df, max_df, eps_start, eps_stop, eps_step, min_sample_start,
-         min_sample_stop, min_sample_step, metrics, matrix, n_components, random_state, output_dir):
+         min_sample_stop, min_sample_step, metrics, matrix, n_components, random_state, output_dir, jobs):
     logger.info(f'Starting DBSCAN.')
 
     global default_random_state
@@ -48,28 +48,28 @@ def main(dataset, stop_words, lem, stem, min_df, max_df, eps_start, eps_stop, ep
 
     if matrix == 'original':
         loop(df, X, eps_start, eps_stop, eps_step, min_sample_start, min_sample_stop, min_sample_step, metrics, None,
-             output_dir)
+             output_dir, jobs)
     elif matrix == 'all':
         pca, Y_pca = utils.pca_reduction(X.toarray(), n_components, random_state)
         tsne, Y_tsne = utils.tsne_reduction(X, n_components, random_state)
         loop(df, X, eps_start, eps_stop, eps_step, min_sample_start, min_sample_stop, min_sample_step, metrics, None,
-             output_dir)
+             output_dir, jobs)
         loop(df, Y_pca, eps_start, eps_stop, eps_step, min_sample_start, min_sample_stop, min_sample_step, metrics,
-             "PCA", output_dir)
+             "PCA", output_dir, jobs)
         loop(df, Y_tsne, eps_start, eps_stop, eps_step, min_sample_start, min_sample_stop, min_sample_step, metrics,
-             "TSNE", output_dir)
+             "TSNE", output_dir, jobs)
     elif matrix == 'pca':
         pca, Y_pca = utils.pca_reduction(X.toarray(), n_components, random_state)
         loop(df, Y_pca, eps_start, eps_stop, eps_step, min_sample_start, min_sample_stop, min_sample_step, metrics,
-             "PCA", output_dir)
+             "PCA", output_dir, jobs)
     else:
         tsne, Y_tsne = utils.tsne_reduction(X, n_components, random_state)
         loop(df, Y_tsne, eps_start, eps_stop, eps_step, min_sample_start, min_sample_stop, min_sample_step, metrics,
-             "TSNE", output_dir)
+             "TSNE", output_dir, jobs)
 
 
 def loop(df, X, eps_start, eps_stop, eps_step, min_sample_start, min_sample_stop, min_sample_step, metrics,
-         reduction_type, output_dir):
+         reduction_type, output_dir, jobs):
     results = pd.DataFrame()
     if metrics == 'all':
         metrics_try = ['cosine', 'euclidean', 'manhattan']
@@ -83,9 +83,9 @@ def loop(df, X, eps_start, eps_stop, eps_step, min_sample_start, min_sample_stop
     results.to_csv(f'{output_dir}results-{reduction_type}.csv', index=False)
 
 
-def dbscan(df, X, metric, eps, min_sample, reduction_type, output_dir):
+def dbscan(df, X, metric, eps, min_sample, reduction_type, output_dir, jobs):
     start = timer()
-    dbscan = DBSCAN(metric=metric, eps=eps, min_samples=min_sample)
+    dbscan = DBSCAN(metric=metric, eps=eps, min_samples=min_sample, n_jobs=jobs)
     X_t = dbscan.fit_predict(X)
     end = timer()
 
@@ -136,6 +136,7 @@ def parse_args():
                         choices=['all', 'cosine', 'euclidean', 'manhattan'])
     parser.add_argument('--output-dir', help='the directory to save the generate artifacts', type=str,
                         default=f'{tmp.tempdir}{os.path.sep}dbscan')
+    parser.add_argument('--jobs', help='number of parallel jobs', type=int, default=2)
     return parser.parse_args()
 
 
@@ -144,6 +145,8 @@ if __name__ == '__main__':
         args = parse_args()
         main(args.dataset, args.stop_words, args.lem, args.stem, args.min_df, args.max_df, args.eps_start,
              args.eps_stop, args.eps_step, args.min_sample_start, args.min_sample_stop, args.min_sample_step,
-             args.metrics, args.matrix, args.n_components, args.random_state, args.output_dir)
+             args.metrics, args.matrix, args.n_components, args.random_state, args.output_dir, args.jobs)
+        logger.info('Finish DBSCAN algorithm run.')
     except Exception:
+        logger.error('Error when running DBSCAN algorithm: ')
         logger.error(utils.full_stack())

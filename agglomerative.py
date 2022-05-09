@@ -14,6 +14,8 @@ import pandas as pd
 import numpy as np
 import tempfile as tmp
 from sklearn.cluster import AgglomerativeClustering
+import warnings
+warnings.filterwarnings('ignore')
 
 
 logger = LoggerFactory.get_logger(__name__, log_level="DEBUG")
@@ -21,7 +23,7 @@ default_random_state = None
 
 
 def main(dataset, stop_words, lem, stem, min_df, max_df, k_start, k_stop, k_step, linkages, affinities, matrix,
-         n_components, random_state, output_dir):
+         n_components, random_state, disable_plots, output_dir):
     logger.info(f'Starting AgglomerativeClustering')
 
     global default_random_state
@@ -46,22 +48,22 @@ def main(dataset, stop_words, lem, stem, min_df, max_df, k_start, k_stop, k_step
     logger.info(f'Time to vectorizer text: {timedelta(seconds=end - start)}')
 
     if matrix == 'original':
-        loop(df, X, k_start, k_stop, k_step, linkages, affinities, None, output_dir)
+        loop(df, X, k_start, k_stop, k_step, linkages, affinities, None, output_dir, disable_plots)
     elif matrix == 'all':
-        pca, Y_pca = utils.pca_reduction(X.toarray(), n_components, random_state)
-        tsne, Y_tsne = utils.tsne_reduction(X, n_components, random_state)
-        loop(df, X, k_start, k_stop, k_step, linkages, affinities, None, output_dir)
-        loop(df, Y_pca, k_start, k_stop, k_step, linkages, affinities, "PCA", output_dir)
-        loop(df, Y_tsne, k_start, k_stop, k_step, linkages, affinities, "TSNE", output_dir)
+        pca, Y_pca = utils.pca_reduction(X.toarray(), 0.95, random_state)
+        tsne, Y_tsne = utils.tsne_reduction(X, 2, random_state)
+        loop(df, X, k_start, k_stop, k_step, linkages, affinities, None, output_dir, disable_plots)
+        loop(df, Y_pca, k_start, k_stop, k_step, linkages, affinities, "PCA", output_dir, disable_plots)
+        loop(df, Y_tsne, k_start, k_stop, k_step, linkages, affinities, "TSNE", output_dir, disable_plots)
     elif matrix == 'pca':
         pca, Y_pca = utils.pca_reduction(X.toarray(), n_components, random_state)
-        loop(df, Y_pca, k_start, k_stop, k_step, linkages, affinities, "PCA", output_dir)
+        loop(df, Y_pca, k_start, k_stop, k_step, linkages, affinities, "PCA", output_dir, disable_plots)
     else:
         tsne, Y_tsne = utils.tsne_reduction(X, n_components, random_state)
-        loop(df, Y_tsne, k_start, k_stop, k_step, linkages, affinities, "TSNE", output_dir)
+        loop(df, Y_tsne, k_start, k_stop, k_step, linkages, affinities, "TSNE", output_dir, disable_plots)
 
 
-def loop(df, X, k_start, k_stop, k_step, linkages, affinites, reduction_type, output_dir):
+def loop(df, X, k_start, k_stop, k_step, linkages, affinites, reduction_type, output_dir, disable_plots):
     if linkages == 'all':
         linkage = ['ward', 'complete', 'average', 'single']
     else:
@@ -72,19 +74,21 @@ def loop(df, X, k_start, k_stop, k_step, linkages, affinites, reduction_type, ou
     else:
         affinity = [affinites]
 
-    results = pd.DataFrame()
+    results = pd.DataFrame(columns=['K', 'linkage', 'affinity', 'reduction_type', 'silhouette_euclidian',
+                                    'silhouette_cosine', 'silhouette_manhattan', 'calinski', 'davies', 'time'])
+    results.to_csv(f'{output_dir}results-{reduction_type}.csv', index=False)
+
     for i in np.arange(start=k_start, stop=k_stop, step=k_step):
         for link in linkage:
             for aff in affinity:
                 if link == 'ward':
-                    results = results.append(agglomerative(df, X, i, link, 'euclidean', reduction_type, output_dir))
+                    agglomerative(df, X, i, link, 'euclidean', reduction_type, output_dir, disable_plots)
+                    break
                 else:
-                    results = results.append(agglomerative(df, X, i, link, aff, reduction_type, output_dir))
-
-    results.to_csv(f'{output_dir}results-{reduction_type}.csv', index=False)
+                    agglomerative(df, X, i, link, aff, reduction_type, output_dir, disable_plots)
 
 
-def agglomerative(df, X, K, link, affinity, reduction_type, output_dir):
+def agglomerative(df, X, K, link, affinity, reduction_type, output_dir, disable_plots):
     start = timer()
 
     agglo = AgglomerativeClustering(n_clusters=K, linkage=link, affinity=affinity)
@@ -103,22 +107,23 @@ def agglomerative(df, X, K, link, affinity, reduction_type, output_dir):
     logger.debug(text)
     df['cluster'] = X_t
 
-    try_result = pd.DataFrame(data=[[K, link, affinity, reduction_type, silhouette_euclidian, silhouette_cosine,
+    pd.DataFrame(data=[[K, link, affinity, reduction_type, silhouette_euclidian, silhouette_cosine,
                                      silhouette_manhattan, calinski, davies, duration]],
                               columns=['K', 'linkage', 'affinity', 'reduction_type', 'silhouette_euclidian',
-                                       'silhouette_cosine', 'silhouette_manhattan', 'calinski', 'davies', 'time'])
-    logger.info(f'Saving 2d and 3d plots.')
-    name = str(agglo)
+                                       'silhouette_cosine', 'silhouette_manhattan', 'calinski', 'davies', 'time'])\
+        .to_csv(f'{output_dir}results-{reduction_type}.csv', mode='a', index=False, header=False)
 
-    utils.d2(name, X, X_t, reduction_type is None, default_random_state, f'{output_dir}plots{os.path.sep}2d',
-             footnote=text)
-    utils.d3(name, X, X_t, reduction_type is None, default_random_state, f'{output_dir}plots{os.path.sep}3d',
-             footnote=text)
+    if not disable_plots:
+        logger.info(f'Saving 2d and 3d plots.')
+        name = str(agglo)
+
+        utils.d2(name, X, X_t, reduction_type is None, default_random_state, f'{output_dir}plots{os.path.sep}2d',
+                 footnote=text)
+        utils.d3(name, X, X_t, reduction_type is None, default_random_state, f'{output_dir}plots{os.path.sep}3d',
+                 footnote=text)
 
     df.to_csv(f'{output_dir}{K}-{link}-{affinity}-{reduction_type}.csv', index=False)
     #pickle.dump(agglomerative, open(f'./agglomerative/models/{K}-{link}-{affinity}.pkl', 'wb'))
-
-    return try_result
 
 
 def parse_args():
@@ -142,7 +147,9 @@ if __name__ == '__main__':
         args = parse_args()
         main(args.dataset, args.stop_words, args.lem, args.stem, args.min_df, args.max_df, args.k_start, args.k_stop,
              args.k_step, args.linkages, args.affinities, args.matrix, args.n_components, args.random_state,
-             args.output_dir)
+             args.disable_plots, args.output_dir)
+        logger.info('Finish Agglomerative algorithm run')
     except Exception:
+        logger.info('Error when running Agglomerative algorithm: ')
         logger.error(utils.full_stack())
 
