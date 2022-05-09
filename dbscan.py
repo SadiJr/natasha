@@ -128,7 +128,7 @@ def parse_args():
                         default=0.001)
     parser.add_argument('--min-samples-start', help='the number of min samples to start clustering', type=int,
                         default=5)
-    parser.add_argument('--min-samples-start', help='the number of max samples to stop clustering', type=int,
+    parser.add_argument('--min-samples-stop', help='the number of max samples to stop clustering', type=int,
                         default=50)
     parser.add_argument('--min-samples-step', help='the default step number to increment in the min samples value',
                         type=int, default=1)
