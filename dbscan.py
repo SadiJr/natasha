@@ -144,7 +144,7 @@ if __name__ == '__main__':
     try:
         args = parse_args()
         main(args.dataset, args.stop_words, args.lem, args.stem, args.min_df, args.max_df, args.eps_start,
-             args.eps_stop, args.eps_step, args.min_sample_start, args.min_sample_stop, args.min_sample_step,
+             args.eps_stop, args.eps_step, args.min_samples_start, args.min_samples_stop, args.min_samples_step,
              args.metrics, args.matrix, args.n_components, args.random_state, args.output_dir, args.jobs)
         logger.info('Finish DBSCAN algorithm run.')
     except Exception:
