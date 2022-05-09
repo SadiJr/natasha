@@ -22,7 +22,8 @@ logger = LoggerFactory.get_logger(__name__, log_level="DEBUG")
 
 
 def main(dataset, stop_words, lem, stem, min_df, max_df, eps_start, eps_stop, eps_step, min_sample_start,
-         min_sample_stop, min_sample_step, metrics, matrix, n_components, random_state, output_dir, jobs):
+         min_sample_stop, min_sample_step, metrics, matrix, n_components, random_state, output_dir, jobs,
+         disable_plots):
     logger.info(f'Starting DBSCAN.')
 
     global default_random_state
@@ -48,29 +49,31 @@ def main(dataset, stop_words, lem, stem, min_df, max_df, eps_start, eps_stop, ep
 
     if matrix == 'original':
         loop(df, X, eps_start, eps_stop, eps_step, min_sample_start, min_sample_stop, min_sample_step, metrics, None,
-             output_dir, jobs)
+             output_dir, jobs, disable_plots)
     elif matrix == 'all':
         pca, Y_pca = utils.pca_reduction(X.toarray(), n_components, random_state)
         tsne, Y_tsne = utils.tsne_reduction(X, n_components, random_state)
         loop(df, X, eps_start, eps_stop, eps_step, min_sample_start, min_sample_stop, min_sample_step, metrics, None,
-             output_dir, jobs)
+             output_dir, jobs, disable_plots)
         loop(df, Y_pca, eps_start, eps_stop, eps_step, min_sample_start, min_sample_stop, min_sample_step, metrics,
-             "PCA", output_dir, jobs)
+             "PCA", output_dir, jobs, disable_plots)
         loop(df, Y_tsne, eps_start, eps_stop, eps_step, min_sample_start, min_sample_stop, min_sample_step, metrics,
-             "TSNE", output_dir, jobs)
+             "TSNE", output_dir, jobs, disable_plots)
     elif matrix == 'pca':
         pca, Y_pca = utils.pca_reduction(X.toarray(), n_components, random_state)
         loop(df, Y_pca, eps_start, eps_stop, eps_step, min_sample_start, min_sample_stop, min_sample_step, metrics,
-             "PCA", output_dir, jobs)
+             "PCA", output_dir, jobs, disable_plots)
     else:
         tsne, Y_tsne = utils.tsne_reduction(X, n_components, random_state)
         loop(df, Y_tsne, eps_start, eps_stop, eps_step, min_sample_start, min_sample_stop, min_sample_step, metrics,
-             "TSNE", output_dir, jobs)
+             "TSNE", output_dir, jobs, disable_plots)
 
 
 def loop(df, X, eps_start, eps_stop, eps_step, min_sample_start, min_sample_stop, min_sample_step, metrics,
-         reduction_type, output_dir, jobs):
-    results = pd.DataFrame()
+         reduction_type, output_dir, jobs, disable_plots):
+    pd.DataFrame(columns=['metric', 'EPS', 'min_samples', 'reduction_type', 'silhouette_euclidian', 'silhouette_cosine',
+                          'silhouette_manhattan', 'calinski', 'davies', 'time'])\
+        .to_csv(f'{output_dir}results-{reduction_type}.csv', index=False)
     if metrics == 'all':
         metrics_try = ['cosine', 'euclidean', 'manhattan']
     else:
@@ -79,11 +82,10 @@ def loop(df, X, eps_start, eps_stop, eps_step, min_sample_start, min_sample_stop
     for metric in metrics_try:
         for eps in np.arange(start=eps_start, stop=eps_stop, step=eps_step):
             for sample in np.arange(start=min_sample_start, stop=min_sample_stop, step=min_sample_step):
-                results = results.append(dbscan(df, X, metric, eps, sample, reduction_type, output_dir))
-    results.to_csv(f'{output_dir}results-{reduction_type}.csv', index=False)
+                dbscan(df, X, metric, eps, sample, reduction_type, output_dir, jobs, disable_plots)
 
 
-def dbscan(df, X, metric, eps, min_sample, reduction_type, output_dir, jobs):
+def dbscan(df, X, metric, eps, min_sample, reduction_type, output_dir, jobs, disable_plots):
     start = timer()
     dbscan = DBSCAN(metric=metric, eps=eps, min_samples=min_sample, n_jobs=jobs)
     X_t = dbscan.fit_predict(X)
@@ -101,23 +103,22 @@ def dbscan(df, X, metric, eps, min_sample, reduction_type, output_dir, jobs):
         logger.debug(text)
         df['cluster'] = X_t
 
-        try_result = pd.DataFrame(data=[[metric, eps, min_sample, reduction_type, silhouette_euclidian,
-                                         silhouette_cosine, silhouette_manhattan, calinski, davies, duration]],
-                                  columns=['metric', 'EPS', 'min_samples', 'reduction_type', 'silhouette_euclidian',
-                                           'silhouette_cosine', 'silhouette_manhattan', 'calinski', 'davies', 'time'])
+        pd.DataFrame(data=[[metric, eps, min_sample, reduction_type, silhouette_euclidian, silhouette_cosine,
+                            silhouette_manhattan, calinski, davies, duration]],
+                     columns=['metric', 'EPS', 'min_samples', 'reduction_type', 'silhouette_euclidian',
+                              'silhouette_cosine', 'silhouette_manhattan', 'calinski', 'davies', 'time'])\
+            .to_csv(f'{output_dir}results-{reduction_type}.csv', index=False, mode='a', header=False)
+        if not disable_plots:
+            logger.info('Saving 2d and 3d plots.')
+            name = str(dbscan)
 
-        logger.info('Saving 2d and 3d plots.')
-        name = str(dbscan)
-
-        utils.d2(name, X, X_t, reduction_type is None, default_random_state, f'{output_dir}plots{os.path.sep}2d',
-                 footnote=text)
-        utils.d3(name, X, X_t, reduction_type is None, default_random_state, f'{output_dir}plots{os.path.sep}3d',
-                 footnote=text)
+            utils.d2(name, X, X_t, reduction_type is None, default_random_state, f'{output_dir}plots{os.path.sep}2d',
+                     footnote=text)
+            utils.d3(name, X, X_t, reduction_type is None, default_random_state, f'{output_dir}plots{os.path.sep}3d',
+                     footnote=text)
 
         df.to_csv(f'{output_dir}{metric}-{eps}-{min_sample}-{reduction_type}.csv', index=False)
         #pickle.dump(dbscan, open(f'./dbscan/models/{metric}-{eps}-{min_sample}.pkl', 'wb'))
-
-        return try_result
 
 
 def parse_args():
@@ -145,7 +146,8 @@ if __name__ == '__main__':
         args = parse_args()
         main(args.dataset, args.stop_words, args.lem, args.stem, args.min_df, args.max_df, args.eps_start,
              args.eps_stop, args.eps_step, args.min_samples_start, args.min_samples_stop, args.min_samples_step,
-             args.metrics, args.matrix, args.n_components, args.random_state, args.output_dir, args.jobs)
+             args.metrics, args.matrix, args.n_components, args.random_state, args.output_dir, args.jobs,
+             args.disable_plots)
         logger.info('Finish DBSCAN algorithm run.')
     except Exception:
         logger.error('Error when running DBSCAN algorithm: ')
