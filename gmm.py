@@ -131,7 +131,7 @@ def parse_args():
                         default=1.0)
     parser.add_argument('--tolerance-step', help='the default step number to increment in the tolerance value',
                         type=float, default=0.001)
-    parser.add_argument('--covariance-type', help='the covariances to try', type=str, default='all',
+    parser.add_argument('--covariances', help='the covariances to try', type=str, default='all',
                         choices=['all', 'full', 'tied', 'diag', 'spherical'])
     parser.add_argument('--output-dir',  help='the directory to save the generate artifacts', type=str,
                         default=f'{tmp.tempdir}{os.path.sep}gmm')
@@ -143,7 +143,7 @@ if __name__ == '__main__':
     try:
         args = parse_args()
         main(args.dataset, args.stop_words, args.lem, args.stem, args.min_df, args.max_df, args.k_start, args.k_stop,
-             args.k_step, args.tol_start, args.tol_stop, args.tol_step, args.covariances, args.matrix,
+             args.k_step, args.tolerance_start, args.tolerance_stop, args.tolerance_step, args.covariances, args.matrix,
              args.n_components, args.random_state, args.disable_plots, args.output_dir)
         logger.info('Finish GMM algorithm run')
     except Exception:
