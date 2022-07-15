@@ -194,44 +194,51 @@ app.layout = html.Div([
 ])
 
 
-def update_figure(value, df, X):
+def update_figure(value, df, X, Y=None):
+    text = df.text if df is not None else None
+    user = None
+    if Y is not None:
+        user = Y
+    elif df is not None:
+        user = df.user_name
+
+    print(f'user: {user}')
     if value == '2dpca':
-        return plots.pca(X, df.user_name, df.text)
+        return plots.pca(X, user, text)
     elif value == '2dtsne':
-        return plots.tsne(X, df.user_name, df.text)
+        return plots.tsne(X, user, text)
     elif value == '3dpca':
-        return plots.pca(X, df.user_name, df.text, d=True)
+        return plots.pca(X, user, text, d=True)
     elif value == '3dtsne':
-        return plots.tsne(X, df.user_name, df.text, d=True)
+        return plots.tsne(X, user, text, d=True)
 
 
-@app.callback(
-    [Output('exploratory-analysis', 'hidden'),
-     Output('exploratory-analysis', 'children')],
-    [Input('operations', 'value')]
-)
-def operation(value):
-    global df
+def operation(value, df, users, plot, algorithm, n_clusters):
     if df is not None:
         if value == 'exp':
-            return [False, exploratory.exploratory(df)]
+            return [[], False, exploratory.exploratory(df)]
         elif value == 'ag':
-            return [True, '']
+            X = vect(df)
+            Y = run_clustering(algorithm, len(df), X, n_clusters)
+            print(f'Predict is {Y}')
+            return [update_figure(plot, df, X, Y=Y), True, '']
         elif value == 'per':
-            return [True, '']
+            return [update_figure(plot, df, vect(df)), True, '']
         elif value == 'vi':
-            return [True, '']
+            return [update_figure(plot, None, vect(df)), True, '']
         elif value == 'demo':
-            return [True, '']
+            return [update_figure(plot, df, vect(df)), True, '']
         else:
             raise Exception(f'Invalid value {value}.')
     else:
-        return [True, '']
+        return [None, True, '']
 
 
 @app.callback(
     [
         Output('cluster_visualization', 'figure'),
+        Output('exploratory-analysis', 'hidden'),
+        Output('exploratory-analysis', 'children')
     ],
     [
         Input('upload', 'contents'),
@@ -239,13 +246,15 @@ def operation(value):
         Input('algorithm', 'value'),
         Input('plot', 'value'),
         Input('n_clusters', 'value'),
+        Input('operations', 'value')
     ]
 )
 def update_results(uploaded_file,
                    filename,
                    algorithm,
                    plot,
-                   n_clusters):
+                   n_clusters,
+                   operation_action):
     try:
         logger.debug('Starting application...')
         if uploaded_file is not None:
@@ -261,18 +270,13 @@ def update_results(uploaded_file,
                 elif 'txt' in filename:
                     df = pd.read_csv(io.StringIO(decoded.decode('utf-8')), delimiter=r'\s+')
                 else:
-                    return html.Div([
-                        'There was an error processing this file.'
-                    ])
+                    return ['', False, html.Div([html.H6('There was an error processing this file.')])]
             except Exception as e:
                 logger.exception(utils.full_stack())
-                return html.Div([
-                    'There was an error processing this file.'
-                ])
+                return ['', False, html.Div([html.H6('There was an error processing this file.')])]
         else:
             logger.debug('Using default data.')
             df = pd.read_csv('data/data-processed.csv')
-            df, users = preprocess.label_user_types(df)
 
         df.dropna(inplace=True)
         df.drop_duplicates(inplace=True)
@@ -280,23 +284,23 @@ def update_results(uploaded_file,
         df = utils.discard_wrong_user_stories(df)
         df, users = preprocess.label_user_types(df)
 
-        return [update_figure(plot, df, default_plot(df, users))]
+        return operation(operation_action, df, users, plot, algorithm, n_clusters)#[update_figure(plot, df, default_plot(df, users))]
 
     except Exception as e:
         logger.exception(utils.full_stack())
         raise dash.exceptions.PreventUpdate
 
 
-def default_plot(df, users):
+def vect(df):
     df['clean'] = df.text.apply(lambda x: preprocess.decontracted(x))
     df['clean'] = df.clean.apply(lambda x: preprocess.clean(x))
     X, vec = preprocess.vectorizer(df.clean, 1, 1.0)
     return X
 
 
-def run_clustering(algorithm, X, k):
+def run_clustering(algorithm, rows, X, k):
     if algorithm == 'kmeans':
-        return clustering.kmeans(X, k)
+        return clustering.kmeans(X, k, rows)
     elif algorithm == 'agglomerative':
         return clustering.agglomerative(X, k)
     elif algorithm == 'dbscan':
