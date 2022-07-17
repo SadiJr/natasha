@@ -1,3 +1,5 @@
+import tempfile
+
 from logger import LoggerFactory
 import pandas as pd
 import base64
@@ -124,13 +126,38 @@ app.layout = html.Div([
             id='n_clusters',
             type='number',
             min=-1,
-            value=-1,
+            placeholder='Número de Grupos - utilizado pelo K-Means, Agglomerative e GMM',
             debounce=True,
+            step=1,
+            style={
+                'width': '100%',
+            }
+        ),
+        dcc.Input(
+            id='eps',
+            type='number',
+            min=0.001,
+            placeholder='EPS - utilizado pelo DBSCAN',
+            debounce=True,
+            style={
+                'width': '100%',
+            }
+        ),
+        dcc.Input(
+            id='min_points',
+            type='number',
+            min=2,
+            placeholder='MinPoints - utilizado pelo DBSCAN',
+            debounce=True,
+            style={
+                'width': '100%',
+                'align': 'flex',
+                'justifyContent': 'center',
+            }
         ),
     ], style={
         'font-size': '15px',
-        'display': 'block',
-        'align': 'center',
+        'display': 'grid',
         'width': '100%',
         'text-align': 'center',
         'border-bottom': '2px solid #131313'
@@ -189,20 +216,34 @@ app.layout = html.Div([
     ], style={
         'vertical-align': 'center',
         'width': '100%',
-        'font-size': '12px'
+        'font-size': '12px',
+        'border-bottom': '2px solid #131313'
     }),
+
+    html.Div([
+        html.Button("Download CSV", id="btn_csv"),
+        dcc.Download(id="download-dataframe-csv"),
+    ]),
 ])
 
 
-def update_figure(value, df, X, Y=None):
+@app.callback(
+    Output("download-dataframe-csv", "data"),
+    Input("btn_csv", "n_clicks"),
+    prevent_initial_call=True,
+)
+def func(n_clicks):
+    global df
+    data = df[['text', 'user_name']]
+    return dcc.send_data_frame(data.to_csv, "processed.csv")
+
+
+def update_figure(value, df, X):
     text = df.text if df is not None else None
     user = None
-    if Y is not None:
-        user = Y
-    elif df is not None:
+    if df is not None:
         user = df.user_name
 
-    print(f'user: {user}')
     if value == '2dpca':
         return plots.pca(X, user, text)
     elif value == '2dtsne':
@@ -213,15 +254,16 @@ def update_figure(value, df, X, Y=None):
         return plots.tsne(X, user, text, d=True)
 
 
-def operation(value, df, users, plot, algorithm, n_clusters):
+def operation(value, df, users, plot, algorithm, n_clusters=-1, eps=0.1, min_points=2):
     if df is not None:
         if value == 'exp':
             return [[], False, exploratory.exploratory(df)]
         elif value == 'ag':
             X = vect(df)
-            Y = run_clustering(algorithm, len(df), X, n_clusters)
-            print(f'Predict is {Y}')
-            return [update_figure(plot, df, X, Y=Y), True, '']
+            Y = run_clustering(algorithm, len(df), X, n_clusters, eps, min_points)
+            df['user_name'] = Y
+            df['user_name'] = df.user_name.apply(lambda x: f'Grupo {x}')
+            return [update_figure(plot, df, X), True, '']
         elif value == 'per':
             return [update_figure(plot, df, vect(df)), True, '']
         elif value == 'vi':
@@ -246,6 +288,8 @@ def operation(value, df, users, plot, algorithm, n_clusters):
         Input('algorithm', 'value'),
         Input('plot', 'value'),
         Input('n_clusters', 'value'),
+        Input('eps', 'value'),
+        Input('min_points', 'value'),
         Input('operations', 'value')
     ]
 )
@@ -254,15 +298,18 @@ def update_results(uploaded_file,
                    algorithm,
                    plot,
                    n_clusters,
+                   eps,
+                   min_points,
                    operation_action):
     try:
+        print(f'Values are n_clusters: {n_clusters} - EPS: {eps} - minPts: {min_points}')
         logger.debug('Starting application...')
         if uploaded_file is not None:
             logger.debug(f'Trying to use uploaded data {uploaded_file.split(",")[0]}.')
             try:
                 content_type, content_string = uploaded_file.split(',')
                 decoded = base64.b64decode(content_string)
-
+                global df
                 if 'csv' in filename:
                     df = pd.read_csv(io.StringIO(decoded.decode('utf-8')))
                 elif 'xls' in filename:
@@ -284,27 +331,27 @@ def update_results(uploaded_file,
         df = utils.discard_wrong_user_stories(df)
         df, users = preprocess.label_user_types(df)
 
-        return operation(operation_action, df, users, plot, algorithm, n_clusters)#[update_figure(plot, df, default_plot(df, users))]
+        return operation(operation_action, df, users, plot, algorithm, n_clusters, eps, min_points)
 
     except Exception as e:
         logger.exception(utils.full_stack())
         raise dash.exceptions.PreventUpdate
 
 
-def vect(df):
-    df['clean'] = df.text.apply(lambda x: preprocess.decontracted(x))
-    df['clean'] = df.clean.apply(lambda x: preprocess.clean(x))
-    X, vec = preprocess.vectorizer(df.clean, 1, 1.0)
+def vect(data):
+    data['clean'] = data.text.apply(lambda x: preprocess.decontracted(x))
+    data['clean'] = data.clean.apply(lambda x: preprocess.clean(x))
+    X, vec = preprocess.vectorizer(data.clean, 1, 1.0)
     return X
 
 
-def run_clustering(algorithm, rows, X, k):
+def run_clustering(algorithm, rows, X, k, eps, min_points):
     if algorithm == 'kmeans':
         return clustering.kmeans(X, k, rows)
     elif algorithm == 'agglomerative':
         return clustering.agglomerative(X, k)
     elif algorithm == 'dbscan':
-        return clustering.dbscan(X, 0.1, 2)
+        return clustering.dbscan(X, eps, min_points)
     elif algorithm == 'gmm':
         return clustering.gmm(X, k)
     else:

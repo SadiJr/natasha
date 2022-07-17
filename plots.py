@@ -3,7 +3,7 @@ from sklearn.manifold import TSNE
 from sklearn.decomposition import PCA
 
 
-def pca(X, labels, texts, title='Grupos encontrados - PCA', d=False):
+def pca(X, labels=None, texts=None, title='Grupos encontrados - PCA', d=False):
     if d:
         pca = PCA(n_components=3, random_state=42).fit_transform(X.toarray())
         return px.scatter_3d(pca, x=0, y=1, z=2, color=labels, labels=labels, title=title, hover_name=texts)
