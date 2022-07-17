@@ -1,0 +1,12 @@
+chardet==4.0.0
+cufflinks==0.17.3
+dash==2.5.1
+Flask==2.1.2
+matplotlib==3.5.2
+nltk==3.7
+numpy==1.22.3
+pandas==1.4.2
+plotly==5.9.0
+scikit_learn==1.1.1
+scipy==1.8.0
+wordcloud==1.8.1
