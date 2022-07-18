@@ -238,11 +238,11 @@ def func(n_clicks):
     return dcc.send_data_frame(data.to_csv, "processed.csv")
 
 
-def update_figure(value, df, X):
-    text = df.text if df is not None else None
+def update_figure(value, data, X):
+    text = data.text if data is not None else None
     user = None
-    if df is not None:
-        user = df.user_name
+    if data is not None and data.user_name is not None:
+        user = data.user_name
 
     if value == '2dpca':
         return plots.pca(X, user, text)
@@ -257,7 +257,7 @@ def update_figure(value, df, X):
 def operation(value, df, users, plot, algorithm, n_clusters=-1, eps=0.1, min_points=2):
     if df is not None:
         if value == 'exp':
-            return [[], False, exploratory.exploratory(df)]
+            return [dash.no_update, False, exploratory.exploratory(df)]
         elif value == 'ag':
             X = vect(df)
             Y = run_clustering(algorithm, len(df), X, n_clusters, eps, min_points)
@@ -267,13 +267,15 @@ def operation(value, df, users, plot, algorithm, n_clusters=-1, eps=0.1, min_poi
         elif value == 'per':
             return [update_figure(plot, df, vect(df)), True, '']
         elif value == 'vi':
-            return [update_figure(plot, None, vect(df)), True, '']
+            data = df.copy()
+            data.user_name = None
+            return [update_figure(plot, data, vect(df)), True, '']
         elif value == 'demo':
             return [update_figure(plot, df, vect(df)), True, '']
         else:
             raise Exception(f'Invalid value {value}.')
     else:
-        return [None, True, '']
+        return [dash.no_update, True, '']
 
 
 @app.callback(
