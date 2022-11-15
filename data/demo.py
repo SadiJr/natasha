@@ -13,6 +13,6 @@ def get_demo_data(filename='demo.csv'):
 
     logger.debug(f'Trying to read data source: {path}.')
     df = preprocess.read_user_stories(path)
-
+    df.drop(columns=['index', 'user_type', 'correctly', 'clean'], inplace=True)
     #logger.debug(f'Readed dataframe:\n{df}')
     return df

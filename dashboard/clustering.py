@@ -58,7 +58,7 @@ def get_clusters(df, to_cluster, clustering, clustering_options):
     if clustering_options:
         clusters = clustering_dropdown.apply(clustering, clustering_options, to_cluster)
     elif clustering == 'Agrupar por personas encontradas':
-        clusters = df.user_name
+        clusters = clustering_dropdown.apply(clustering, clustering_options, to_cluster).user_name
     elif to_cluster is not None:
         clusters = np.zeros(to_cluster.shape[0])
     else:
