@@ -1,6 +1,6 @@
 import logging
 from logging import handlers
-
+import os
 
 class LoggerFactory(object):
     log = None
@@ -37,6 +37,7 @@ class LoggerFactory(object):
         their own module
         """
         logger = LoggerFactory.create_logger(log_file, log_level)
-
+        if 'DISABLE_LOGS' in os.environ:
+            logger.disabled = True
         # return the logger object
         return logger
