@@ -22,9 +22,9 @@ class DimReduction:
 
 
 class PCA(DimReduction):
-    _default_options = {'n_components': 3}
+    _default_options = {'n_components': 2}
 
-    def __init__(self, n_components):
+    def __init__(self, n_components=2):
         self.options = {"n_components": float(n_components) if n_components.count('.') > 0 else int(n_components)}
 
     def apply(self, df):
@@ -36,9 +36,9 @@ class PCA(DimReduction):
 
 
 class TSNE(DimReduction):
-    _default_options = {'n_components': 3}
+    _default_options = {'n_components': 2}
 
-    def __init__(self, n_components=3):
+    def __init__(self, n_components=2):
         self.options = {'n_components': int(n_components)}
 
     def apply(self, df):
