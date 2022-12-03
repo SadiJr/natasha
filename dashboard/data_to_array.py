@@ -54,6 +54,6 @@ def get_data_to_array_output(df, data_to_array_method, data_to_array_options):
     df_arr = get_data_as_array(df, data_to_array_method, data_to_array_options)
 
     data_to_array_header = f'Vetor Gerado {(0, 0) if df_arr is None else df_arr.shape}:'
-    df_sample = df_arr.sample(min(df_arr.shape[1], 20), axis=1).round(2) if df_arr is not None else None
+    df_sample = df_arr.sample(min(df_arr.shape[1], 20), axis=1).round(5) if df_arr is not None else None
 
-    return misc.generate_datatable(df_sample, "data_to_array", 5, max_cell_width=None),  data_to_array_header
+    return misc.generate_datatable(df_sample, "data_to_array", 10, max_cell_width=None),  data_to_array_header
