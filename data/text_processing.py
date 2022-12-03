@@ -25,7 +25,7 @@ class TextAction:
     def clean(self, x):
         #logger.debug(f'Cleaning text: {x}')
         x = x.lower()
-        x = re.sub('[0-9]|,|\.|/|$|\(|\)|-|\+|:|•', ' ', x)
+        x = re.sub('[0-9]|,|\.|/|$|\(|\)|-|\+|:|•|\_', ' ', x)
         x = re.sub("\'", '', x)
         x = re.sub('\s\s+', ' ', x)
         #logger.debug(f'Cleaned text: {x.strip()}')
@@ -157,7 +157,7 @@ class TFIDF(TextAction):
         countvec = TfidfVectorizer(**{**self.options})
         countarr = countvec.fit_transform(df['text_to_cluster'])
 
-        #logger.debug(f'Generated vector:\n{countarr}\nand generated vectorizer: {countvec}')
+        logger.debug(f'Generated TF-IDF matrix is:\n{pd.DataFrame(countarr.toarray(), columns=countvec.get_feature_names_out())}')
         return countvec, countarr
 
     def apply(self, df):
@@ -167,10 +167,10 @@ class TFIDF(TextAction):
 
 class BOW(TextAction):
     _default_options = {
-        "max_df": 0.8, "min_df": 50, "ngram_range": (1, 2)
+        "max_df": 1.0, "min_df": 1, "ngram_range": (1, 1)
     }
 
-    def __init__(self, max_df=0.8, min_df=50, ngram_range=(1, 2)):
+    def __init__(self, max_df=1.0, min_df=1, ngram_range=(1, 1)):
         self.options = {"max_df": float(max_df), "min_df": int(min_df),
                         "ngram_range": tuple(int(x) for x in ngram_range)}
 
