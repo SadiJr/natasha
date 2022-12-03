@@ -82,7 +82,7 @@ def exploratory(data, selected_columns):
     df1 = pd.DataFrame(common_words, columns=['UserStory', 'count'])
     ngrams = plot_n_gramns(df1, 'UserStory', 'count', 'Count', '20 palavras mais frequentes nas histórias antes de remover as stop words')
 
-    common_words = get_top_n_words(df['text'], True, 20)
+    common_words = get_top_n_words(df['text'], True, 20, remove_want=True)
     df1 = pd.DataFrame(common_words, columns=['UserStory', 'count'])
     another_ngrams = plot_n_gramns(df1, 'UserStory', 'count', 'Count', '20 palavras mais frequentes nas histórias depois de remover as stop words')
 
