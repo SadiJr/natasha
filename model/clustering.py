@@ -85,9 +85,8 @@ class Personas(Clustering):
         pass
 
     def apply(self, df):
-        print(df.columns if df is not None else 'Cu')
         if 'text' in df.columns:
-            #df, users = preprocess.label_user_types(df)
-            #df['user_name'] = df['user_type'].apply(lambda x: users[x])
+            df, users = preprocess.label_user_types(df)
+            df['user_name'] = df['user_type'].apply(lambda x: users[x])
             return df
         return None
