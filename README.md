@@ -5,6 +5,14 @@ Repositório para armazenar o código da aplicação _web_ gerada durante meu pr
 
 ---
 
+### Avisos
+
+1. Esse projeto se trata de protótipo de meu projeto de graduação, ainda estando em fase de aprimoramentos, não devendo ser utilizado em algum ambiente de produção.
+2. Alguns _bugs_ ainda precisam ser fixados, e eu irei o fazer assim que tiver tempo disponível.
+3. Em breve postarei o _link_ para a monografia desse projeto, então peço que tenham paciência até lá :)
+
+---
+
 ## Instalação
 ---
 
@@ -62,4 +70,3 @@ Sinta-se livre para colaborar com esse projeto, seja reportando _bugs_ ou sugest
 
 ---
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://github.com/SadiJr/natasha/blob/main/LICENSE)
-
