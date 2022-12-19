@@ -1,11 +1,9 @@
-from dash import dcc
-from dash import html
-from dash import dash_table
+from dash import dcc, html, dash_table
 from dash.dependencies import Output
 
 import data.text_processing as text_processing
 
-import dashboard.app_misc as misc
+import dashboard.miscellaneous as misc
 from dashboard.cache import cache
 
 from model.logger import LoggerFactory
@@ -56,4 +54,4 @@ def get_preprocessed_data(df, preprocessing_method):
 def get_data_preprocessing_output(df, preprocessing_method):
     df = get_preprocessed_data(df, preprocessing_method)
 
-    return misc.generate_datatable(df, "text_preprocess", 5, max_cell_width=None)
+    return misc.datatable(df, "text_preprocess", 5, max_cell_width=None)

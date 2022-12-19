@@ -1,22 +1,13 @@
 from collections import namedtuple
 
-from dash import dash_table
-from dash import dcc
-from dash import html
+from dash import dash_table, dcc, html
 from dash.dependencies import Input, Output, State
 
 
 HtmlElement = namedtuple("HtmlElement", ["id", "property"])
 
 
-def flatten(obj):
-    if isinstance(obj, (list, tuple)):
-        return [e for l in obj for e in flatten(l)]
-    else:
-        return [obj]
-
-
-class DropdownWithOptions:
+class Dropdown:
     style = {"border": 'grey solid', 'padding': '5px', 'margin': '5px'}
 
     def __init__(self, header, dropdown_id, dropdown_objects, include_refresh_button):
@@ -27,15 +18,15 @@ class DropdownWithOptions:
 
     def generate_dash_element(self):
         return html.Div([
-            html.H5(self.header, id="%s_heading" % self.dropdown_id),
+            html.H5(self.header, id=f'{self.dropdown_id}_heading'),
             dcc.Dropdown(
                 id=self.dropdown_id,
                 options=[{'label': name, 'value': name} for name, _ in self.dropdown_objects.items()]
             ),
             html.P("Opções:", style={'padding': '5px', 'margin': '5px'}),
-            html.Div(id='%s_options' % self.dropdown_id, style=self.style),
-            html.Div(html.Button("Atualizar", id="%s_refresh" % self.dropdown_id, style=self.style))
-        ], id='%s_div' % self.dropdown_id)
+            html.Div(id=f'{self.dropdown_id}_options', style=self.style),
+            html.Div(html.Button("Atualizar", id=f'{self.dropdown_id}_refresh', style=self.style))
+        ], id=f'{self.dropdown_id}_div')
 
     @property
     def dropdown_args(self):
@@ -63,39 +54,38 @@ class DropdownWithOptions:
         def update_options(dropdown_choice):
             if dropdown_choice is None:
                 return
-            return self.generate_options_element(dropdown_choice)
+            return self.opt_elements(dropdown_choice)
 
-    def generate_options_element(self, dropdown_choice):
-        if dropdown_choice is None or dropdown_choice == "None":
+    def opt_elements(self, dropdown_choice):
+        if dropdown_choice is None:
             return
 
         return [
             *[e
               for option_name, default_value in self.dropdown_objects[dropdown_choice].get_options().items()
-              for e in ("%s: " % option_name,
-                        dcc.Input(id="%s|%s" % (dropdown_choice, option_name), type="text", value=str(default_value)))],
+              for e in (f"{option_name}: ", dcc.Input(id="%s|%s" % (dropdown_choice, option_name), type="text",
+                                                      value=str(default_value)))],
         ]
 
-    def _parse_options_element(self, options_element):
-        options = {}
+    def options(self, options_element):
+        opt = {}
+
         for e in options_element:
-            if not isinstance(e, dict) or "href" in e["props"]:
+            if not isinstance(e, dict):
                 continue
 
-            id, value = e["props"]["id"], tuple(e["props"]["value"].strip("()").split(","))
+            id_pros, value = e["props"]["id"], tuple(e["props"]["value"].strip("()").split(","))
             if len(value) == 1:
                 value = value[0]
-            options[id.split("|")[1]] = value
+            opt[id_pros.split("|")[1]] = value
 
-        return options
+        return opt
 
     def apply(self, dropdown_choice, options_element, df):
-        options = self._parse_options_element(options_element)
-        return self.dropdown_objects[dropdown_choice](**options).apply(df)
+        return self.dropdown_objects[dropdown_choice](**self.options(options_element)).apply(df)
 
 
-def generate_datatable(df, table_id, max_rows=10, max_cell_width="600px",
-                       text_overflow="ellipsis"):
+def datatable(df, table_id, max_rows=10, max_cell_width="600px", text_overflow="ellipsis"):
     if df is None:
         return dash_table.DataTable(id=table_id)
 
@@ -108,25 +98,20 @@ def generate_datatable(df, table_id, max_rows=10, max_cell_width="600px",
             'rule': 'display: inline; white-space: inherit; overflow: inherit; text-overflow: inherit;'
         }],
         style_table={
-            'maxHeight': '350px',
-            'overflowY': 'auto',
-            'border': 'thin lightgrey solid',
+            'border': 'thin lightgrey solid', 'maxHeight': '350px', 'overflowY': 'auto',
         },
         style_cell={
-            'whiteSpace': 'no-wrap',
-            'overflow': 'hidden',
-            'textOverflow': text_overflow,
-            'minWidth': '0px', 'maxWidth': max_cell_width,
+            'minWidth': '0px', 'whiteSpace': 'no-wrap', 'overflow': 'hidden',
+            'textOverflow': text_overflow, 'maxWidth': max_cell_width,
         }
     )
 
 
-def generate_column_picker(df, element_id):
+def c_picker(df, ele_id):
     if df is None:
-        return dcc.Dropdown(id=element_id)
+        return dcc.Dropdown(id=ele_id)
 
     return dcc.Dropdown(
-        id=element_id, value=[], multi=True,
-        options=[{'label': col, 'value': col} for col in df.columns]
+        id=ele_id, value=[], multi=True, options=[{'label': col, 'value': col} for col in df.columns]
     )
 

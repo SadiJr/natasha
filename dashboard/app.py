@@ -6,7 +6,7 @@ import dash
 sys.path.append(os.getcwd())
 
 import data.text_processing as text_processing
-
+import pandas as pd
 import dashboard.data_selection as data_selection
 import dashboard.data_preprocessing as data_preprocessing
 import dashboard.data_exploratory_analysis as data_analysis
@@ -15,12 +15,12 @@ import dashboard.data_dim_reduction as data_dim_reduction
 import dashboard.plotting as plotting
 import dashboard.clustering as clustering
 
-from dash import dcc
-from dash import html
+from dash import dcc, html
 from dash.dependencies import Input, Output, State
 from dashboard.cache import cache
 from model.logger import LoggerFactory
 from model.utils import full_stack
+
 
 logger = LoggerFactory.get_logger(__name__, 'DEBUG')
 CACHE_CONFIG = {
@@ -41,27 +41,24 @@ name_to_html_element_pool = {
     **clustering.arguments
 }
 
-processed = None
 
-
-def map_arguments(outputs):
+def args_mapper(outputs):
     logger.debug(f'Mapping outputs: {outputs}.')
-    def _map_arguments(func):
+
+    def m(f):
         inputs = []
         states = []
-        for argument in inspect.getfullargspec(func).args:
+        for argument in inspect.getfullargspec(f).args:
             if argument.startswith("s_"):
                 states.append(State(*name_to_html_element_pool[argument.replace("s_", "")]))
             else:
                 inputs.append(Input(*name_to_html_element_pool[argument]))
 
-        return app.callback(outputs, inputs, states)(func)
+        return app.callback(outputs, inputs, states)(f)
 
-    logger.debug(f'Generated maps: {_map_arguments}')
-    return _map_arguments
+    return m
 
 
-################################################################################################
 app.layout = html.Div([
     html.Div([
         html.Img(src=app.get_asset_url('ufsc.svg'), style={'height': '100px', 'display': 'inline-block',
@@ -82,15 +79,14 @@ app.layout = html.Div([
 
     html.Div([
         dcc.Tabs(id="tabs_2", children=[
-            plotting.plotting_options_tab,
+            plotting.plot_opt_tab,
             clustering.clustering_tab,
         ]),
     ], style={"marginTop": "10px", "padding": "5px", "border": "grey solid"}),
 
     html.Div(id="plot_area", children=[
         dcc.Tabs(id="tabs_3", children=[
-            plotting.plot_tab,
-            clustering.clusters_tab
+            plotting.plot_tab
         ], style={"border": "grey solid", "padding": "5px", "marginTop": "10px"})
     ], style={"marginTop": "10px", "padding": "5px", "border": "grey solid"}),
 
@@ -101,7 +97,6 @@ app.layout = html.Div([
 ], style={"background-color": "#f2f2f2", "margin": "20px"})
 
 
-################################################################################################
 def get_data(selected_data):
     logger.debug(f'Trying to get data: {selected_data}.')
     return data_selection.get_data(selected_data)
@@ -177,12 +172,12 @@ def get_data_clustered(selected_data, selected_columns,
 ################################################################################################
 data_to_array.data_to_array_dropdown.generate_update_options_callback(app)
 data_dim_reduction.dim_reduction_dropdown.generate_update_options_callback(app)
-plotting.plotting_options_dropdown.generate_update_options_callback(app)
+plotting.plot_options.generate_update_options_callback(app)
 clustering.clustering_dropdown.generate_update_options_callback(app)
 
 
 ################################################################################################
-@map_arguments(data_selection.outputs)
+@args_mapper(data_selection.outputs)
 def update_data_selection(
         selected_data
 ):
@@ -190,7 +185,7 @@ def update_data_selection(
     return data_selection.get_data_selection_output(selected_data)
 
 
-@map_arguments(data_preprocessing.outputs)
+@args_mapper(data_preprocessing.outputs)
 def update_data_preprocessing(
         selected_columns, preprocessing_method,
         s_selected_data
@@ -202,7 +197,7 @@ def update_data_preprocessing(
     return data_preprocessing.get_data_preprocessing_output(df, preprocessing_method)
 
 
-@map_arguments(data_analysis.outputs)
+@args_mapper(data_analysis.outputs)
 def update_exploratory_analysis(
     selected_data, selected_columns
 ):
@@ -210,7 +205,7 @@ def update_exploratory_analysis(
     return data_analysis.exploratory(df, selected_columns)
 
 
-@map_arguments(data_to_array.outputs)
+@args_mapper(data_to_array.outputs)
 def update_data_to_array(
         data_to_array_method,
         data_to_array_options,
@@ -228,7 +223,7 @@ def update_data_to_array(
     return data_to_array.get_data_to_array_output(df, data_to_array_method, data_to_array_options)
 
 
-@map_arguments(data_dim_reduction.outputs)
+@args_mapper(data_dim_reduction.outputs)
 def update_dim_reduction(
         dim_reduction_method,
         dim_reduction_options,
@@ -249,7 +244,7 @@ def update_dim_reduction(
     return data_dim_reduction.get_dim_reduction_output(df_arr, dim_reduction_method, dim_reduction_options)
 
 
-@map_arguments(plotting.outputs)
+@args_mapper(plotting.outputs)
 def update_plot(
         data_to_array_method, data_to_array_options,
         dim_reduction_method, dim_reduction_options,
@@ -283,7 +278,7 @@ def update_plot(
                                     clusters, titles)
 
 
-@map_arguments(clustering.outputs)
+@args_mapper(clustering.outputs)
 def update_cluster_clustering(
         data_to_array_method, data_to_array_options,
         dim_reduction_method, dim_reduction_options,
@@ -314,14 +309,7 @@ def update_cluster_clustering(
         titles = get_data(s_selected_data).text
         logger.debug(f'Generated titles: {titles}')
 
-    bow = None
-    if s_selected_data:
-        bow = text_processing.BOW(ngram_range=(1, 1), min_df=1).apply(
-            get_data_preprocessed(s_selected_data, s_selected_columns, s_preprocessing_method)
-        )
-        #logger.debug(f'Generated bow: {bow}.')
-
-    return clustering.get_clustering_cluster_output(get_data(s_selected_data), df_arr_dim_red, clustering_method, clustering_options, titles, bow)
+    return clustering.get_clustering_cluster_output(get_data(s_selected_data), df_arr_dim_red, clustering_method, clustering_options, titles)
 
 
 ### temporary callbacks
@@ -331,10 +319,10 @@ def update_cluster_clustering(
     prevent_initial_call=True
 )
 def func(n_clicks):
-    global df
-    data = df[['text', 'user_name']]
-    return dcc.send_data_frame(data.to_csv, "processed.csv")
+    data = pd.read_csv('data/processed.csv')[['text', 'user_type']]
+
+    return dcc.send_data_frame(data.to_csv, "processed.csv", index=False, type='text/csv')
 
 
 if __name__ == "__main__":
-    app.run_server(host='0.0.0.0', port=8080, debug=True)
+    app.run_server(host='0.0.0.0', port=8089, debug=True)

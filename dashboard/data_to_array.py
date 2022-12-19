@@ -1,11 +1,9 @@
-from dash import dcc
-from dash import html
-from dash import dash_table
+from dash import dcc, html, dash_table
 from dash.dependencies import Output
 
 import data.text_processing as text_processing
 
-import dashboard.app_misc as misc
+import dashboard.miscellaneous as misc
 from dashboard.cache import cache
 
 from model.logger import LoggerFactory
@@ -13,7 +11,7 @@ from model.utils import full_stack
 
 logger = LoggerFactory.get_logger(__name__, 'DEBUG')
 
-data_to_array_dropdown = misc.DropdownWithOptions(
+data_to_array_dropdown = misc.Dropdown(
     header="Opções de Vetorização dos Dados:", dropdown_id="to_array", dropdown_objects={
         "TFIDF": text_processing.TFIDF
     }, include_refresh_button=True
@@ -56,4 +54,4 @@ def get_data_to_array_output(df, data_to_array_method, data_to_array_options):
     data_to_array_header = f'Vetor Gerado {(0, 0) if df_arr is None else df_arr.shape}:'
     df_sample = df_arr.sample(min(df_arr.shape[1], 20), axis=1).round(5) if df_arr is not None else None
 
-    return misc.generate_datatable(df_sample, "data_to_array", 10, max_cell_width=None),  data_to_array_header
+    return misc.datatable(df_sample, "data_to_array", 10, max_cell_width=None),  data_to_array_header

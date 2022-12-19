@@ -1,5 +1,5 @@
-import sklearn.cluster
-import sklearn.mixture
+import sklearn.cluster as sc
+import sklearn.mixture as sm
 from model import preprocess
 
 from model.logger import LoggerFactory
@@ -27,7 +27,7 @@ class KMeans(Clustering):
 
     def apply(self, df):
         logger.debug(f'df: {df.shape}')
-        kmeans = sklearn.cluster.KMeans(**{k: v for k, v in self.options.items() if not k.startswith('metric')}, random_state=42)
+        kmeans = sc.KMeans(**{k: v for k, v in self.options.items() if not k.startswith('metric')}, random_state=42)
         logger.debug(f'kmeans: {kmeans}')
 
         if self.options['metric'] == 'euclidean':
@@ -48,7 +48,7 @@ class DBSCAN(Clustering):
 
     def apply(self, df):
         logger.debug(f'df: {df.shape}')
-        dbscan = sklearn.cluster.DBSCAN(**self.options, n_jobs=4)
+        dbscan = sc.DBSCAN(**self.options, n_jobs=4)
         logger.debug(f'DBSCAN definition: {dbscan}')
         return dbscan.fit_predict(df.values)
 
@@ -61,13 +61,13 @@ class AgglomerativeClustering(Clustering):
 
     def apply(self, df):
         logger.debug(f'df: {df.shape}')
-        agglo = sklearn.cluster.AgglomerativeClustering(**self.options)
+        agglo = sc.AgglomerativeClustering(**self.options)
         logger.debug(f'Agglomerative definition: {agglo}')
         arr = df.values
         return agglo.fit_predict(arr)
 
 
-class GaussianMixture(Clustering):
+class GMM(Clustering):
     _default_options = {'n_components': 8, 'covariance_type': 'full', 'tol': 0.001}
 
     def __init__(self, n_components, covariance_type, tol):
@@ -75,7 +75,7 @@ class GaussianMixture(Clustering):
 
     def apply(self, df):
         logger.debug(f'df: {df.shape}')
-        gmm = sklearn.mixture.GaussianMixture(**self.options, random_state=42)
+        gmm = sm.GaussianMixture(**self.options, random_state=42)
         logger.debug(f'GMM definition: {gmm}')
         return gmm.fit_predict(df.values)
 

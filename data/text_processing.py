@@ -20,7 +20,7 @@ class TextAction:
     _default_options = {}
 
     def apply(self, df):
-        raise NotImplemented
+        pass
 
     def clean(self, x):
         #logger.debug(f'Cleaning text: {x}')
@@ -158,28 +158,6 @@ class TFIDF(TextAction):
         countarr = countvec.fit_transform(df['text_to_cluster'])
 
         logger.debug(f'Generated TF-IDF matrix is:\n{pd.DataFrame(countarr.toarray(), columns=countvec.get_feature_names_out())}')
-        return countvec, countarr
-
-    def apply(self, df):
-        vec, arr = self.get_vec_arr(df)
-        return pd.DataFrame(arr.toarray(), columns=vec.get_feature_names_out())
-
-
-class BOW(TextAction):
-    _default_options = {
-        "max_df": 1.0, "min_df": 1, "ngram_range": (1, 1)
-    }
-
-    def __init__(self, max_df=1.0, min_df=1, ngram_range=(1, 1)):
-        self.options = {"max_df": float(max_df), "min_df": int(min_df),
-                        "ngram_range": tuple(int(x) for x in ngram_range)}
-
-    def get_vec_arr(self, df):
-        logger.debug(f'Applying BOW in dataframe using options {self.options}')
-        min_df = min(self.options["min_df"], int(self.options["max_df"] * len(df)) -1)
-        countvec = CountVectorizer(stop_words="english", **{**self.options, "min_df": min_df})
-        countarr = countvec.fit_transform(df.values.ravel())
-
         return countvec, countarr
 
     def apply(self, df):

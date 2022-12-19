@@ -1,20 +1,18 @@
-from dash import dcc
-from dash import html
-from dash import dash_table
+from dash import dcc, html, dash_table
 from dash.dependencies import Output
 
 import pandas as pd
 
 import model
 
-import dashboard.app_misc as misc
+import dashboard.miscellaneous as misc
 from dashboard.cache import cache
 
 from model.logger import LoggerFactory
 
 logger = LoggerFactory.get_logger(__name__, 'DEBUG')
 
-dim_reduction_dropdown = misc.DropdownWithOptions(
+dim_reduction_dropdown = misc.Dropdown(
     header="(Opcional) Reduza a dimensionalidade dos dados antes de agrupar:", dropdown_id="dim_reduction",
     dropdown_objects={
         "PCA": model.dim_reduction.PCA,
@@ -57,4 +55,4 @@ def get_dim_reduction_output(df_arr, dim_reduction_method, dim_reduction_options
     if df_arr_dim_red is not None:
         sample_df = df_arr_dim_red.sample(min(df_arr_dim_red.shape[1], 20), axis=1).round(2)
 
-    return misc.generate_datatable(sample_df, "dim_red_table", 5, max_cell_width="350px")
+    return misc.datatable(sample_df, "dim_red_table", 5, max_cell_width="350px")

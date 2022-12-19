@@ -1,12 +1,10 @@
-from dash import dcc
-from dash import html
-from dash import dash_table
+from dash import dcc, html, dash_table
 from dash.dependencies import Output
 
 from data.demo import get_demo_data
 import data.text_processing as text_processing
 
-import dashboard.app_misc as misc
+import dashboard.miscellaneous as misc
 from dashboard.cache import cache
 
 from model.logger import LoggerFactory
@@ -71,5 +69,4 @@ def get_data_selection_output(selected_data):
     df = get_data(selected_data)
     top_rows_text = f"Cabeçalho ({0 if df is None else len(df)} histórias de usuários)"
 
-    return misc.generate_datatable(df, "data_top_rows_table", 5), \
-           misc.generate_column_picker(df, 'data_column_selector'), top_rows_text
+    return misc.datatable(df, "data_top_rows_table", 5), misc.c_picker(df, 'data_column_selector'), top_rows_text

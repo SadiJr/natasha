@@ -1,5 +1,4 @@
-from dash import dcc
-from dash import html
+from dash import dcc, html
 from dash.dependencies import Output
 
 import numpy as np
@@ -9,56 +8,54 @@ import plotly.graph_objs as go
 
 import model
 
-import dashboard.app_misc as misc
+import dashboard.miscellaneous as misc
 from dashboard.cache import cache
 
 from model.logger import LoggerFactory
 
 logger = LoggerFactory.get_logger(__name__, 'DEBUG')
 
-plotting_options_dropdown = misc.DropdownWithOptions(
+plot_tab = dcc.Tab(
+    label="Gráfico", children=[dcc.Graph(id="scatter-plot")],
+    className="custom-tab", selected_className="custom-tab--selected"
+)
+
+plot_options = misc.Dropdown(
     header="Escolha o algoritmo de redução de dimensionalidade para exibir o gráfico:",
     dropdown_id="plot_dim_reduction", dropdown_objects={
         "PCA": model.dim_reduction.PCA,
         "TSNE": model.dim_reduction.TSNE,
     }, include_refresh_button=True
 )
-
-plotting_options_tab = dcc.Tab(
-    label="Opções de Gráfico", children=[
-        html.Div(id="plotting_dim_red_area", children=[
-            plotting_options_dropdown.generate_dash_element(),
-        ]),
-    ], className="custom-tab", selected_className="custom-tab--selected"
-)
-
-plot_tab = dcc.Tab(
-    label="Gráfico", children=[dcc.Graph(id="scatter-plot")],
-    className="custom-tab", selected_className="custom-tab--selected"
-)
-
 arguments = {
-    "plot_dim_reduction_method": misc.HtmlElement(*plotting_options_dropdown.dropdown_args),
-    "plot_dim_reduction_options": misc.HtmlElement(*plotting_options_dropdown.options_args),
-    "plot_dim_reduction_refresh": misc.HtmlElement(*plotting_options_dropdown.refresh_args),
+    "plot_dim_reduction_method": misc.HtmlElement(*plot_options.dropdown_args),
+    "plot_dim_reduction_options": misc.HtmlElement(*plot_options.options_args),
+    "plot_dim_reduction_refresh": misc.HtmlElement(*plot_options.refresh_args),
 }
 outputs = Output("scatter-plot", "figure")
 
+plot_opt_tab = dcc.Tab(
+    label="Opções de Gráfico", children=[
+        html.Div(id="plotting_dim_red_area", children=[
+            plot_options.generate_dash_element(),
+        ]),
+    ], className="custom-tab", selected_className="custom-tab--selected"
+)
 
 @cache.memoize()
 def get_dim_reduction(df_arr, plot_dim_reduction_method, plot_dim_reduction_options):
     logger.debug(f'plot_dim_reduction_method: {plot_dim_reduction_method}\nplot_dim_reduction_options: '
                  f'{plot_dim_reduction_options}.')
     if plot_dim_reduction_method and plot_dim_reduction_options:
-        return pd.DataFrame(plotting_options_dropdown.apply(plot_dim_reduction_method, plot_dim_reduction_options,
-                                                            df_arr))
+        return pd.DataFrame(plot_options.apply(plot_dim_reduction_method, plot_dim_reduction_options,
+                                               df_arr))
 
     return None
 
-
-def get_scatter_plots(coords, clusters, titles):
+# https://stackoverflow.com/a/55828367
+def plots(coords, clusters, titles):
     logger.debug(f'coords: {coords}')
-    # https://stackoverflow.com/a/55828367
+
     np.random.seed(80)
     colors = np.random.choice(list(matplotlib.colors.cnames.values()), size=np.unique(clusters).size, replace=True)
 
@@ -71,7 +68,7 @@ def get_scatter_plots(coords, clusters, titles):
             continue
 
         scatter_plots.append(scatter_class(
-            name="Grupo %s" % cluster,
+            name=f"Grupo {cluster}",
             **{label: coords[idx, i] for label, i in dims},
             text=titles.values[idx],
             textposition="top center",
@@ -90,8 +87,8 @@ def get_plot_output(df_arr, plot_dim_reduction_method, plot_dim_reduction_option
         return go.Figure(layout=go.Layout(margin=dict(l=0, r=0, b=0, t=0), plot_bgcolor="#f2f2f2", height=1000))
 
     coords_df = get_dim_reduction(df_arr, plot_dim_reduction_method, plot_dim_reduction_options)
-    scatter_plots = get_scatter_plots(coords_df.values, clusters, titles)
+    scatter_plots = plots(coords_df.values, clusters, titles)
 
-    return go.Figure(data=scatter_plots, layout=go.Layout(margin=dict(l=0, r=0, b=0, t=0), plot_bgcolor="#f2f2f2",
-                                                          legend={"bgcolor": "#f2f2f2"}, hovermode="closest",
-                                                          height=1000))
+    return go.Figure(data=scatter_plots, layout=go.Layout(
+        margin=dict(l=0, r=0, b=0, t=0), plot_bgcolor="#f2f2f2",
+        legend={"bgcolor": "#f2f2f2"}, hovermode="closest", height=1000))

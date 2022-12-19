@@ -1,6 +1,5 @@
 import sklearn.decomposition as decomposition
 import sklearn.manifold as manifold
-from sklearn.preprocessing import StandardScaler
 from model.logger import LoggerFactory
 
 logger = LoggerFactory.get_logger(__name__, 'DEBUG')
